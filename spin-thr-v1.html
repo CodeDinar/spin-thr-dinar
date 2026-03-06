@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Undian THR Interactive</title>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root {
+            --primary-color: #e74c3c;
+            --secondary-color: #2c3e50;
+            --bg-color: #f4f7f6;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .container {
+            position: relative;
+            text-align: center;
+        }
+
+        h1 {
+            color: var(--secondary-color);
+            margin-bottom: 20px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        /* Penanda Jarum */
+        .pointer {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 30px solid var(--primary-color);
+            z-index: 10;
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));
+        }
+
+        canvas {
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2), 0 0 0 10px white;
+            transition: transform 4s cubic-bezier(0.15, 0, 0.15, 1);
+            max-width: 90vw;
+            max-height: 90vw;
+        }
+
+        .spin-button {
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: white;
+            background-color: var(--primary-color);
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .spin-button:hover {
+            background-color: #c0392b;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(231, 76, 60, 0.6);
+        }
+
+        .spin-button:active {
+            transform: translateY(0);
+        }
+
+        .spin-button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🎡 Keberuntungan THR</h1>
+        <div class="pointer"></div>
+        <canvas id="wheel" width="400" height="400"></canvas>
+        <br>
+        <button class="spin-button" id="spinBtn" onclick="spinWheel()">Putar Sekarang!</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('wheel');
+        const ctx = canvas.getContext('2d');
+        const spinBtn = document.getElementById('spinBtn');
+
+        // Data hadiah dan bobot (Semakin besar weight, semakin sering muncul)
+        // 100k, 50k, 20k diberi weight 0 agar tidak pernah terpilih
+        const prizes = [
+            { label: "100.000", color: "#FFD700", weight: 0 },
+            { label: "50.000",  color: "#FF5733", weight: 0 },
+            { label: "20.000",  color: "#33FF57", weight: 0 },
+            { label: "10.000",  color: "#3357FF", weight: 2 },
+            { label: "5.000",   color: "#F333FF", weight: 8 },
+            { label: "2.000",   color: "#FFB833", weight: 15 },
+            { label: "1.000",   color: "#33FFF5", weight: 30 },
+            { label: "500",     color: "#A133FF", weight: 45 }
+        ];
+
+        const numSegments = prizes.length;
+        const segmentAngle = 360 / numSegments;
+        let currentRotation = 0;
+
+        // Gambar Roda
+        function drawWheel() {
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const radius = canvas.width / 2;
+
+            prizes.forEach((prize, i) => {
+                const startAngle = (i * segmentAngle * Math.PI) / 180;
+                const endAngle = ((i + 1) * segmentAngle * Math.PI) / 180;
+
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+                ctx.fillStyle = prize.color;
+                ctx.fill();
+                ctx.stroke();
+
+                // Gambar Teks
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(startAngle + (segmentAngle * Math.PI) / 360);
+                ctx.textAlign = "right";
+                ctx.fillStyle = "#fff";
+                ctx.font = "bold 16px Arial";
+                ctx.shadowBlur = 4;
+                ctx.shadowColor = "rgba(0,0,0,0.5)";
+                ctx.fillText(prize.label, radius - 20, 10);
+                ctx.restore();
+            });
+        }
+
+        // Logika Weighted Random
+        function getWeightedPrizeIndex() {
+            const totalWeight = prizes.reduce((sum, p) => sum + p.weight, 0);
+            let random = Math.random() * totalWeight;
+            
+            for (let i = 0; i < prizes.length; i++) {
+                if (random < prizes[i].weight) {
+                    return i;
+                }
+                random -= prizes[i].weight;
+            }
+            return prizes.length - 1; // Fallback
+        }
+
+        function spinWheel() {
+            spinBtn.disabled = true;
+
+            // Pilih hasil berdasarkan bobot
+            const selectedIndex = getWeightedPrizeIndex();
+            
+            /* Kalkulasi Derajat:
+               1. Tambahkan putaran penuh (misal 5 putaran = 1800 deg)
+               2. Hitung posisi target agar jarum (di atas/270 deg) tepat di segmen tersebut.
+               3. Kita butuh (270 - (index * 45) - 22.5) untuk pas di tengah segmen.
+            */
+            const extraRotations = (Math.floor(Math.random() * 5) + 5) * 1800; 
+            const stopAngle = (270 - (selectedIndex * segmentAngle) - (segmentAngle / 2));
+            
+            currentRotation = extraRotations + stopAngle;
+
+            canvas.style.transform = `rotate(${currentRotation}deg)`;
+
+            // Tunggu animasi selesai (4 detik sesuai CSS)
+            setTimeout(() => {
+                const finalPrize = prizes[selectedIndex].label;
+                
+                Swal.fire({
+                    title: 'Selamat!',
+                    text: `Kamu mendapatkan THR sebesar Rp ${finalPrize}`,
+                    icon: 'success',
+                    confirmButtonText: 'Terima Kasih!',
+                    confirmButtonColor: '#e74c3c',
+                    backdrop: `rgba(0,0,123,0.4) url("https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJndnZ3ZnR3Z3R3Z3R3Z3R3Z3R3Z3R3Z3R3Z3R3Z3R3JlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l0MYt5jPR6QX5pnqM/giphy.gif") center top no-repeat`
+                });
+
+                spinBtn.disabled = false;
+            }, 4000);
+        }
+
+        drawWheel();
+    </script>
+</body>
+</html>
