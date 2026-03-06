@@ -121,7 +121,7 @@
 
         const numSegments = prizes.length;
         const segmentAngle = 360 / numSegments;
-        let currentRotation = 0;
+        let totalRotation = 0;
 
         // Gambar Roda
         function drawWheel() {
@@ -174,17 +174,27 @@
             // Pilih hasil berdasarkan bobot
             const selectedIndex = getWeightedPrizeIndex();
             
-            /* Kalkulasi Derajat:
-               1. Tambahkan putaran penuh (misal 5 putaran = 1800 deg)
-               2. Hitung posisi target agar jarum (di atas/270 deg) tepat di segmen tersebut.
-               3. Kita butuh (270 - (index * 45) - 22.5) untuk pas di tengah segmen.
-            */
-            const extraRotations = (Math.floor(Math.random() * 5) + 5) * 1800; 
-            const stopAngle = (270 - (selectedIndex * segmentAngle) - (segmentAngle / 2));
+            // LOGIKA BARU:
+            // 1. Tambahkan minimal 1440 derajat (4 putaran penuh) dari posisi saat ini
+            const minSpins = 360 * 4; 
             
-            currentRotation = extraRotations + stopAngle;
+            // 2. Hitung target posisi (jarum di atas = 270 derajat)
+            // Kita hitung selisih derajat untuk mencapai index hadiah
+            const targetOffset = (270 - (selectedIndex * segmentAngle) - (segmentAngle / 2));
+            
+            // 3. Normalisasi rotasi saat ini agar kita tahu 'jarak' ke target
+            const currentNormalized = totalRotation % 360;
+            let distanceToTarget = (targetOffset - currentNormalized);
+            
+            // Jika jarak negatif, putar satu lingkaran lagi agar selalu maju
+            if (distanceToTarget <= 0) {
+                distanceToTarget += 360;
+            }
 
-            canvas.style.transform = `rotate(${currentRotation}deg)`;
+            // Tambahkan ke total rotasi kumulatif
+            totalRotation += minSpins + distanceToTarget;
+
+            canvas.style.transform = `rotate(${totalRotation}deg)`;
 
             // Tunggu animasi selesai (4 detik sesuai CSS)
             setTimeout(() => {
