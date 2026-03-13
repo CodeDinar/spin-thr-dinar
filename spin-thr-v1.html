@@ -32,10 +32,11 @@
         h1 {
             color: var(--secondary-color);
             margin-bottom: 20px;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+            cursor: pointer; /* Memberi petunjuk bisa diklik (opsional) */
+            user-select: none;
         }
 
-        /* Penanda Jarum */
+        /* Jarum Penunjuk */
         .pointer {
             position: absolute;
             top: -20px;
@@ -47,55 +48,52 @@
             border-right: 15px solid transparent;
             border-top: 30px solid var(--primary-color);
             z-index: 10;
-            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));
+            filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
+            cursor: pointer; /* Tombol rahasia */
         }
 
         canvas {
             border-radius: 50%;
-            box-shadow: 0 0 20px rgba(0,0,0,0.2), 0 0 0 10px white;
-            transition: transform 4s cubic-bezier(0.15, 0, 0.15, 1);
+            box-shadow: 0 0 0 10px white, 0 0 25px rgba(0,0,0,0.2);
+            transition: transform 4s cubic-bezier(0.1, 0, 0.1, 1);
             max-width: 90vw;
             max-height: 90vw;
         }
 
         .spin-button {
             margin-top: 30px;
-            padding: 15px 40px;
-            font-size: 1.2rem;
+            padding: 15px 50px;
+            font-size: 1.3rem;
             font-weight: bold;
             color: white;
-            background-color: var(--primary-color);
+            background: linear-gradient(145deg, #e74c3c, #c0392b);
             border: none;
             border-radius: 50px;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
-            transition: all 0.2s ease;
+            box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+            transition: 0.3s;
             text-transform: uppercase;
-            letter-spacing: 2px;
         }
 
         .spin-button:hover {
-            background-color: #c0392b;
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(231, 76, 60, 0.6);
-        }
-
-        .spin-button:active {
-            transform: translateY(0);
+            transform: scale(1.05);
+            box-shadow: 0 8px 20px rgba(231, 76, 60, 0.6);
         }
 
         .spin-button:disabled {
-            background-color: #bdc3c7;
+            background: #bdc3c7;
             cursor: not-allowed;
-            box-shadow: none;
+            transform: scale(1);
         }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <h1>🎡 Keberuntungan THR</h1>
-        <div class="pointer"></div>
+        <h1 id="titleCheat">🎡 Keberuntungan THR</h1>
+        
+        <div class="pointer" id="pointerCheat"></div>
+        
         <canvas id="wheel" width="400" height="400"></canvas>
         <br>
         <button class="spin-button" id="spinBtn" onclick="spinWheel()">Putar Sekarang!</button>
@@ -105,10 +103,11 @@
         const canvas = document.getElementById('wheel');
         const ctx = canvas.getContext('2d');
         const spinBtn = document.getElementById('spinBtn');
+        const titleBtn = document.getElementById('titleCheat');
+        const pointerBtn = document.getElementById('pointerCheat');
 
-        // Data hadiah dan bobot (Semakin besar weight, semakin sering muncul)
-        // 100k, 50k, 20k diberi weight 0 agar tidak pernah terpilih
-        const prizes = [
+        // KONFIGURASI 1: Mode Hemat (Default)
+        const prizesDefault = [
             { label: "100.000", color: "#FFD700", weight: 0 },
             { label: "50.000",  color: "#FF5733", weight: 0 },
             { label: "20.000",  color: "#33FF57", weight: 0 },
@@ -119,17 +118,42 @@
             { label: "500",     color: "#A133FF", weight: 45 }
         ];
 
-        const numSegments = prizes.length;
+        // KONFIGURASI 2: Mode Sultan
+        const prizesSultan = [
+            { label: "100.000", color: "#FFD700", weight: 50 },
+            { label: "50.000",  color: "#FF5733", weight: 50 },
+            { label: "20.000",  color: "#33FF57", weight: 0 },
+            { label: "10.000",  color: "#3357FF", weight: 0 },
+            { label: "5.000",   color: "#F333FF", weight: 0 },
+            { label: "2.000",   color: "#FFB833", weight: 0 },
+            { label: "1.000",   color: "#33FFF5", weight: 0 },
+            { label: "500",     color: "#A133FF", weight: 0 }
+        ];
+
+        // Variabel aktif yang akan digunakan saat spin
+        let activePrizes = [...prizesDefault];
+
+        // LOGIKA SWITCH RAHASIA
+        titleBtn.onclick = () => {
+            activePrizes = [...prizesDefault];
+            console.log("Mode: Hemat Aktif"); // Bisa dihapus agar tidak ketahuan di console
+        };
+
+        pointerBtn.onclick = () => {
+            activePrizes = [...prizesSultan];
+            console.log("Mode: Sultan Aktif"); // Bisa dihapus agar tidak ketahuan di console
+        };
+
+        const numSegments = activePrizes.length;
         const segmentAngle = 360 / numSegments;
         let totalRotation = 0;
 
-        // Gambar Roda
         function drawWheel() {
             const centerX = canvas.width / 2;
             const centerY = canvas.height / 2;
             const radius = canvas.width / 2;
 
-            prizes.forEach((prize, i) => {
+            activePrizes.forEach((prize, i) => {
                 const startAngle = (i * segmentAngle * Math.PI) / 180;
                 const endAngle = ((i + 1) * segmentAngle * Math.PI) / 180;
 
@@ -140,7 +164,6 @@
                 ctx.fill();
                 ctx.stroke();
 
-                // Gambar Teks
                 ctx.save();
                 ctx.translate(centerX, centerY);
                 ctx.rotate(startAngle + (segmentAngle * Math.PI) / 360);
@@ -154,59 +177,42 @@
             });
         }
 
-        // Logika Weighted Random
         function getWeightedPrizeIndex() {
-            const totalWeight = prizes.reduce((sum, p) => sum + p.weight, 0);
+            const totalWeight = activePrizes.reduce((sum, p) => sum + p.weight, 0);
             let random = Math.random() * totalWeight;
-            
-            for (let i = 0; i < prizes.length; i++) {
-                if (random < prizes[i].weight) {
-                    return i;
-                }
-                random -= prizes[i].weight;
+            for (let i = 0; i < activePrizes.length; i++) {
+                if (random < activePrizes[i].weight) return i;
+                random -= activePrizes[i].weight;
             }
-            return prizes.length - 1; // Fallback
+            return activePrizes.length - 1;
         }
 
         function spinWheel() {
             spinBtn.disabled = true;
 
-            // Pilih hasil berdasarkan bobot
             const selectedIndex = getWeightedPrizeIndex();
-            
-            // LOGIKA BARU:
-            // 1. Tambahkan minimal 1440 derajat (4 putaran penuh) dari posisi saat ini
-            const minSpins = 360 * 4; 
-            
-            // 2. Hitung target posisi (jarum di atas = 270 derajat)
-            // Kita hitung selisih derajat untuk mencapai index hadiah
+            const minSpins = 360 * 5; 
             const targetOffset = (270 - (selectedIndex * segmentAngle) - (segmentAngle / 2));
             
-            // 3. Normalisasi rotasi saat ini agar kita tahu 'jarak' ke target
             const currentNormalized = totalRotation % 360;
             let distanceToTarget = (targetOffset - currentNormalized);
             
-            // Jika jarak negatif, putar satu lingkaran lagi agar selalu maju
             if (distanceToTarget <= 0) {
                 distanceToTarget += 360;
             }
 
-            // Tambahkan ke total rotasi kumulatif
             totalRotation += minSpins + distanceToTarget;
-
             canvas.style.transform = `rotate(${totalRotation}deg)`;
 
-            // Tunggu animasi selesai (4 detik sesuai CSS)
             setTimeout(() => {
-                const finalPrize = prizes[selectedIndex].label;
+                const finalPrize = activePrizes[selectedIndex].label;
                 
                 Swal.fire({
-                    title: 'Selamat!',
-                    text: `Kamu mendapatkan THR sebesar Rp ${finalPrize}`,
+                    title: '🎉 Selamat!',
+                    html: `Anda mendapatkan THR sebesar:<br><b style="font-size: 24px; color: #e74c3c;">Rp ${finalPrize}</b>`,
                     icon: 'success',
-                    confirmButtonText: 'Terima Kasih!',
-                    confirmButtonColor: '#e74c3c',
-                    backdrop: `rgba(0,0,123,0.4) url("https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExNHJndnZ3ZnR3Z3R3Z3R3Z3R3Z3R3Z3R3Z3R3Z3R3Z3R3JlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l0MYt5jPR6QX5pnqM/giphy.gif") center top no-repeat`
+                    confirmButtonText: 'Ambil Hadiah',
+                    confirmButtonColor: '#e74c3c'
                 });
 
                 spinBtn.disabled = false;
